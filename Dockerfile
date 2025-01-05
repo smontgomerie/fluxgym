@@ -37,6 +37,18 @@ RUN chown -R appuser:appuser /app
 RUN rm -r ./sd-scripts
 RUN rm ./requirements.txt
 
+
+# Remove the default models directory and create a new one
+RUN rm -rf /app/fluxgym/models
+
+# Create a new models directory
+RUN mkdir -p /models
+RUN mkdir -p /models/clip
+RUN mkdir -p /models/vae
+RUN mkdir -p /models/unet
+
+RUN ln -s /models /app/fluxgym/models
+
 #Run application as non-root
 USER appuser
 
