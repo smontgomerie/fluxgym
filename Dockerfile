@@ -6,6 +6,7 @@ RUN apt-get update -y && apt-get install -y \
     python3-pip \
     python3-dev \
     git \
+    wget \
     build-essential  # Install dependencies for building extensions
 
 # Define environment variables for UID and GID and local timezone
@@ -37,6 +38,13 @@ RUN chown -R appuser:appuser /app
 RUN rm -r ./sd-scripts
 RUN rm ./requirements.txt
 
+#Run application as non-root
+USER appuser
+
+# Copy fluxgym application code
+COPY . ./fluxgym
+
+USER root
 
 # Remove the default models directory and create a new one
 RUN rm -rf /app/fluxgym/models
@@ -49,11 +57,9 @@ RUN mkdir -p /models/unet
 
 RUN ln -s /models /app/fluxgym/models
 
-#Run application as non-root
-USER appuser
+RUN chown -R appuser:appuser /models
 
-# Copy fluxgym application code
-COPY . ./fluxgym
+USER appuser
 
 EXPOSE 7860
 
@@ -62,4 +68,4 @@ ENV GRADIO_SERVER_NAME="0.0.0.0"
 WORKDIR /app/fluxgym
 
 # Run fluxgym Python application
-CMD ["python3", "./app.py"]
+CMD ["sh", "./start.sh"]
