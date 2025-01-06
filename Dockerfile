@@ -18,7 +18,14 @@ RUN groupadd -g "${PGID}" appuser
 # Create a user with the specified UID and GID
 RUN useradd -m -s /bin/sh -u "${PUID}" -g "${PGID}" appuser
 
-WORKDIR /app
+RUN mkdir -p /app
+RUN mkdir -p /app/fluxgym
+RUN mkdir -p /models
+
+# Copy fluxgym application code
+COPY . /app/fluxgym
+
+WORKDIR /app/fluxgym
 
 # Get sd-scripts from kohya-ss and install them
 RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts && \
@@ -31,41 +38,24 @@ RUN pip install --no-cache-dir -r ./requirements.txt
 
 # Install Torch, Torchvision, and Torchaudio for CUDA 12.2
 RUN pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu122/torch_stable.html
-
-RUN chown -R appuser:appuser /app
+RUN pip install jupyter
 
 # delete redundant requirements.txt and sd-scripts directory within the container
-RUN rm -r ./sd-scripts
-RUN rm ./requirements.txt
+#RUN rm -r ./sd-scripts
+#RUN rm ./requirements.txt
 
-#Run application as non-root
-USER appuser
-
-# Copy fluxgym application code
-COPY . ./fluxgym
-
-USER root
-
-# Remove the default models directory and create a new one
-RUN rm -rf /app/fluxgym/models
-
-# Create a new models directory
-RUN mkdir -p /models
-RUN mkdir -p /models/clip
-RUN mkdir -p /models/vae
-RUN mkdir -p /models/unet
-
-RUN ln -s /models /app/fluxgym/models
-
+RUN chown -R appuser:appuser /app
 RUN chown -R appuser:appuser /models
 
-USER appuser
+#Run application as non-root
+# USER appuser
 
 EXPOSE 7860
+EXPOSE 8888
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 
 WORKDIR /app/fluxgym
 
 # Run fluxgym Python application
-CMD ["sh", "./start.sh"]
+CMD ["bash", "./start.sh"]
