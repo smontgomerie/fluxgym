@@ -48,6 +48,10 @@ done
 
 echo "Models downloaded successfully.";
 
+# Start JupyterLab
+jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.allow_origin='*' &
+echo "JupyterLab started"
+
 export GRADIO_SERVER_NAME="0.0.0.0"
 
 python3 /app/fluxgym/app.py
