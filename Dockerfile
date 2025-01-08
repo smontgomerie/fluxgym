@@ -36,13 +36,14 @@ RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts && \
 COPY ./requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r ./requirements.txt
 
-# Install Torch, Torchvision, and Torchaudio for CUDA 12.2
+# Install Torch, Torchvision, and Torchaudio for CUDA
 RUN pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu122/torch_stable.html
 RUN pip install jupyter
 
 # delete redundant requirements.txt and sd-scripts directory within the container
 #RUN rm -r ./sd-scripts
 #RUN rm ./requirements.txt
+# RUN du -s --max-depth=1 /app && ls -lR /app
 
 RUN chown -R appuser:appuser /app
 RUN chown -R appuser:appuser /models
@@ -52,10 +53,13 @@ RUN chown -R appuser:appuser /models
 
 EXPOSE 7860
 EXPOSE 8888
+EXPOSE 6006
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 
 WORKDIR /app/fluxgym
 
+RUN chmod +x ./start.sh
+
 # Run fluxgym Python application
-CMD ["bash", "./start.sh"]
+CMD ["bash", "-c", "./start.sh; tail -f /dev/null"]

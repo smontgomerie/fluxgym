@@ -32,3 +32,8 @@ peft
 gradio
 python-slugify
 imagesize
+
+pillow
+huggingface-hub
+Werkzeug
+requests

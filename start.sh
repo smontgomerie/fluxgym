@@ -10,7 +10,7 @@ cd /app/fluxgym &&
 pip install -r requirements.txt &&
 echo "fluxgym requirements installed successfully.";
 
-pip install --pre torch==2.4 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 &&
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu122/torch_stable.html &&
 echo "PyTorch installed successfully.";
 
 pip install jupyter &&
@@ -54,4 +54,6 @@ echo "JupyterLab started"
 
 export GRADIO_SERVER_NAME="0.0.0.0"
 
-python3 /app/fluxgym/app.py
+python3 /app/fluxgym/app.py &
+
+

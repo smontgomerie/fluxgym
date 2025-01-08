@@ -1,16 +1,15 @@
+import logging
 import os
 import sys
+
+
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ['GRADIO_ANALYTICS_ENABLED'] = '0'
 sys.path.insert(0, os.getcwd())
 sys.path.append(os.path.join(os.path.dirname(__file__), 'sd-scripts'))
-import subprocess
-import gradio as gr
 from PIL import Image
 import torch
-import uuid
 import shutil
-import json
 import yaml
 from slugify import slugify
 from transformers import AutoProcessor, AutoModelForCausalLM
@@ -21,7 +20,13 @@ from argparse import Namespace
 import train_network
 import toml
 import re
+from tensorboard_proxy import start_tensorboard, get_tensorboard_iframe, wait_for_tensorboard
+import gradio as gr
+from helpers import resolve_path_without_quotes, resolve_path
+
 MAX_IMAGES = 150
+
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 with open('models.yaml', 'r') as file:
     models = yaml.safe_load(file)
@@ -365,14 +370,7 @@ def download(base_model):
         hf_hub_download(repo_id="comfyanonymous/flux_text_encoders", local_dir=clip_folder, filename="t5xxl_fp16.safetensors")
 
 
-def resolve_path(p):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_path = os.path.normpath(os.path.join(current_dir, p))
-    return f"\"{norm_path}\""
-def resolve_path_without_quotes(p):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_path = os.path.normpath(os.path.join(current_dir, p))
-    return norm_path
+
 
 def gen_sh(
     base_model,
@@ -396,6 +394,7 @@ def gen_sh(
 
     output_dir = resolve_path(f"outputs/{output_name}")
     sample_prompts_path = resolve_path(f"outputs/{output_name}/sample_prompts.txt")
+    logging_dir = resolve_path(f"logs")
 
     line_break = "\\"
     file_type = "sh"
@@ -479,6 +478,7 @@ def gen_sh(
   --dataset_config {resolve_path(f"outputs/{output_name}/dataset.toml")} {line_break}
   --output_dir {output_dir} {line_break}
   --output_name {output_name} {line_break}
+  --logging_dir {logging_dir} {line_break}
   --timestep_sampling {timestep_sampling} {line_break}
   --discrete_flow_shift 3.1582 {line_break}
   --model_prediction_type raw {line_break}
@@ -1002,6 +1002,27 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
                 terminal = LogsView(label="Train log", elem_id="terminal")
             with gr.Row():
                 gallery = gr.Gallery(get_samples, inputs=[lora_name], label="Samples", every=10, columns=6)
+        with gr.TabItem("TensorBoard"):
+            gr.Markdown("### TensorBoard Viewer")
+            output_text = gr.Textbox(label="Status")
+
+            def click():
+                hostname, port = start_tensorboard()
+                url = wait_for_tensorboard(hostname, port)  # Wait for TensorBoard to be ready
+                iframe_content = get_tensorboard_iframe(hostname, port)
+                return "TensorBoard started!", hostname, port, iframe_content
+
+            start_button = gr.Button("Start TensorBoard")
+            hostname_box = gr.Textbox(label="Hostname", value="", interactive=False, visible=False)
+            port_box = gr.Textbox(label="Port", value="", interactive=False, visible=False)
+            iframe = gr.HTML()
+
+            # Connect button to the click function
+            start_button.click(
+                fn=click,
+                inputs=[],
+                outputs=[output_text, hostname_box, port_box, iframe]
+            )
 
         with gr.TabItem("Publish") as publish_tab:
             hf_token = gr.Textbox(label="Huggingface Token")
@@ -1033,6 +1054,19 @@ with gr.Blocks(elem_id="app", theme=theme, css=css, fill_width=True) as demo:
             hf_login.click(fn=login_hf, inputs=[hf_token], outputs=[hf_token, hf_login, hf_logout, repo_owner])
             hf_logout.click(fn=logout_hf, outputs=[hf_token, hf_login, hf_logout, repo_owner])
 
+    # JavaScript to capture hostname and port
+    demo.load(
+        None,
+        inputs=[],
+        outputs=[hostname_box, port_box],
+        js="""
+        function() {
+            const hostname = window.location.hostname;
+            const port = window.location.port || "80";
+            return [hostname, port];
+        }
+        """
+    )
 
     publish_tab.select(refresh_publish_tab, outputs=lora_rows)
     lora_rows.select(fn=set_repo, inputs=[lora_rows], outputs=[repo_name])
